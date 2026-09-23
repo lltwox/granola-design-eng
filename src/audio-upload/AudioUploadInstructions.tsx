@@ -1,6 +1,9 @@
 export default function AudioUploadInstructions() {
   return (
-    <>
+    <div
+      className="mt-2 flex flex-col items-center"
+      data-slot="audio-upload-instructions"
+    >
       <h1
         className="text-base/6 font-medium text-zinc-600"
         id="audio-upload-title"
@@ -12,6 +15,6 @@ export default function AudioUploadInstructions() {
         <br />
         to generate transcription or
       </p>
-    </>
+    </div>
   );
 }
