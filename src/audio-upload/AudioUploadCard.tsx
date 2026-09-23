@@ -191,7 +191,11 @@ function getCardClassName(status: UploadState["status"]) {
     return "border-solid border-red-300 bg-red-50";
   }
 
-  if (status === "uploading" || status === "transcribing") {
+  if (
+    status === "uploading" ||
+    status === "transcribing" ||
+    status === "dragging"
+  ) {
     return "border-solid border-zinc-200 bg-zinc-50";
   }
 
