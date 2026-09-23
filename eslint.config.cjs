@@ -1,6 +1,7 @@
 const { defineConfig } = require("eslint/config");
 const tsParser = require("@typescript-eslint/parser");
 const eslintConfigPrettier = require("eslint-config-prettier");
+const betterTailwindcssPlugin = require("eslint-plugin-better-tailwindcss");
 const reactPlugin = require("eslint-plugin-react");
 const { IMPORT_SORT_CONFIG } = require("./eslint.import-sort.cjs");
 
@@ -12,11 +13,13 @@ module.exports = defineConfig([
   {
     files: ["**/*.{ts,tsx}"],
     plugins: {
+      "better-tailwindcss": betterTailwindcssPlugin,
       react: reactPlugin,
     },
     rules: {
       ...reactPlugin.configs.flat.recommended.rules,
       ...reactPlugin.configs.flat["jsx-runtime"].rules,
+      "better-tailwindcss/enforce-canonical-classes": "error",
       "react/jsx-boolean-value": ["error", "never"],
       "react/jsx-curly-brace-presence": [
         "error",
@@ -43,6 +46,9 @@ module.exports = defineConfig([
       },
     },
     settings: {
+      "better-tailwindcss": {
+        entryPoint: "src/styles.css",
+      },
       react: {
         version: "detect",
       },
