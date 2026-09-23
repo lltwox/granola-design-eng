@@ -10,6 +10,7 @@ type UploadFile = Pick<File, "name" | "size">;
 
 type UploadState =
   | { status: "idle" }
+  | { status: "dragging" }
   | { file: UploadFile; progress: number; status: "uploading" }
   | { file: UploadFile; progress: number; status: "transcribing" }
   | { file: UploadFile; status: "success" }
@@ -24,16 +25,19 @@ export default function AudioUploadCard() {
   const [uploadState, setUploadState] = useState<UploadState>({
     status: "idle",
   });
-  const [isDragging, setIsDragging] = useState(false);
   const dragDepthRef = useRef(0);
   const uploadControllerRef = useRef<AbortController>(null);
 
-  useEffect(() => () => uploadControllerRef.current?.abort(), []);
+  useEffect(() => {
+    return () => uploadControllerRef.current?.abort();
+  }, []);
 
   function handleDragEnter(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     dragDepthRef.current += 1;
-    setIsDragging(true);
+    setUploadState((state) =>
+      state.status === "idle" ? { status: "dragging" } : state,
+    );
   }
 
   function handleDragLeave(event: DragEvent<HTMLElement>) {
@@ -42,7 +46,9 @@ export default function AudioUploadCard() {
 
     if (dragDepthRef.current <= 0) {
       dragDepthRef.current = 0;
-      setIsDragging(false);
+      setUploadState((state) =>
+        state.status === "dragging" ? { status: "idle" } : state,
+      );
     }
   }
 
@@ -54,11 +60,14 @@ export default function AudioUploadCard() {
   function handleDrop(event: DragEvent<HTMLElement>) {
     event.preventDefault();
     dragDepthRef.current = 0;
-    setIsDragging(false);
 
     const file = event.dataTransfer.files[0];
     if (file) {
       handleFile(file);
+    } else {
+      setUploadState((state) =>
+        state.status === "dragging" ? { status: "idle" } : state,
+      );
     }
   }
 
@@ -106,9 +115,8 @@ export default function AudioUploadCard() {
     <section
       aria-labelledby="audio-upload-title"
       aria-busy={isBusy}
-      className={`grid h-[min(400px,calc(100svh-32px))] min-h-90 w-full min-w-65 max-w-75 place-items-center rounded-3xl border text-center transition-colors duration-2000 ${getCardClassName(
+      className={`grid h-[min(400px,calc(100svh-32px))] min-h-90 w-full min-w-65 max-w-75 place-items-center rounded-3xl border text-center transition-colors duration-200 ${getCardClassName(
         uploadState.status,
-        isDragging,
       )}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -120,7 +128,6 @@ export default function AudioUploadCard() {
         data-slot="audio-upload-content"
       >
         <AudioUploadIndicator
-          isDragging={isDragging}
           mode={uploadState.status}
           progress={
             "progress" in uploadState ? uploadState.progress : undefined
@@ -175,7 +182,7 @@ function getClientError(
   }
 }
 
-function getCardClassName(status: UploadState["status"], isDragging: boolean) {
+function getCardClassName(status: UploadState["status"]) {
   if (status === "success") {
     return "border-solid border-teal-600/50 bg-teal-50";
   }
@@ -188,7 +195,7 @@ function getCardClassName(status: UploadState["status"], isDragging: boolean) {
     return "border-solid border-zinc-200 bg-zinc-50";
   }
 
-  return isDragging
+  return status === "dragging"
     ? "border-dashed border-teal-600/50 bg-teal-50"
     : "border-dashed border-zinc-300 bg-zinc-50";
 }

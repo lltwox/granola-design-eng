@@ -1,11 +1,10 @@
 type AudioUploadIndicatorProps = {
-  isDragging: boolean;
-  mode: "idle" | "uploading" | "transcribing" | "success" | "error";
+  mode:
+    "idle" | "dragging" | "uploading" | "transcribing" | "success" | "error";
   progress?: number;
 };
 
 export default function AudioUploadIndicator({
-  isDragging,
   mode,
   progress = 0,
 }: AudioUploadIndicatorProps) {
@@ -19,22 +18,15 @@ export default function AudioUploadIndicator({
       className="pointer-events-none relative flex size-44 shrink-0 items-center justify-center"
       data-slot="audio-upload-indicator"
     >
-      <AudioUploadDecoration isDragging={isDragging} mode={mode} />
-      <AudioUploadContent
-        isDragging={isDragging}
-        mode={mode}
-        progress={progress}
-      />
-      <AudioUploadStatusBadge isDragging={isDragging} mode={mode} />
+      <AudioUploadDecoration mode={mode} />
+      <AudioUploadContent mode={mode} progress={progress} />
+      <AudioUploadStatusBadge mode={mode} />
     </div>
   );
 }
 
-function AudioUploadContent({
-  isDragging,
-  mode,
-  progress = 0,
-}: AudioUploadIndicatorProps) {
+function AudioUploadContent({ mode, progress = 0 }: AudioUploadIndicatorProps) {
+  const isDragging = mode === "dragging";
   const isProcessing = mode === "uploading" || mode === "transcribing";
   const radius = 35;
   const circumference = 2 * Math.PI * radius;
@@ -118,10 +110,8 @@ function AudioUploadSuccess() {
   );
 }
 
-function AudioUploadDecoration({
-  isDragging,
-  mode,
-}: AudioUploadIndicatorProps) {
+function AudioUploadDecoration({ mode }: AudioUploadIndicatorProps) {
+  const isDragging = mode === "dragging";
   const isProcessing = mode === "uploading" || mode === "transcribing";
   const ringClassName =
     "col-start-1 row-start-1 border-[0.5px] transition-all duration-500 ease-out motion-reduce:transition-none";
@@ -134,38 +124,39 @@ function AudioUploadDecoration({
       <div
         className={`${ringClassName} ${
           isProcessing
-            ? "size-44 rounded-full border-teal-600/10"
+            ? "size-20.5 rounded-full border-teal-600/40"
             : isDragging
               ? "h-35 w-31 rounded-[38px] border-teal-600/10"
               : "h-44 w-40 rounded-[56px] border-black/5"
-        }`}
+        } ${isProcessing ? "upload-wave-ring" : ""}`}
+        style={isProcessing ? { animationDelay: "-2.4s" } : undefined}
       />
       <div
         className={`${ringClassName} ${
           isProcessing
-            ? "size-36.5 rounded-full border-teal-600/20"
+            ? "size-20.5 rounded-full border-teal-600/40"
             : isDragging
               ? "h-30 w-26 rounded-[28px] border-teal-600/20"
               : "h-36 w-32 rounded-[40px] border-black/10"
-        }`}
+        } ${isProcessing ? "upload-wave-ring" : ""}`}
+        style={isProcessing ? { animationDelay: "-1.2s" } : undefined}
       />
       <div
         className={`${ringClassName} ${
           isProcessing
-            ? "size-28.5 rounded-full border-teal-600/40"
+            ? "size-20.5 rounded-full border-teal-600/40"
             : isDragging
               ? "h-25.25 w-21 rounded-[18px] border-teal-600/40"
               : "h-28 w-24 rounded-3xl border-black/20"
-        }`}
+        } ${isProcessing ? "upload-wave-ring" : ""}`}
+        style={isProcessing ? { animationDelay: "0s" } : undefined}
       />
     </div>
   );
 }
 
-function AudioUploadStatusBadge({
-  isDragging,
-  mode,
-}: AudioUploadIndicatorProps) {
+function AudioUploadStatusBadge({ mode }: AudioUploadIndicatorProps) {
+  const isDragging = mode === "dragging";
   const isProcessing = mode === "uploading" || mode === "transcribing";
   const arrowClassName =
     "col-start-1 row-start-1 size-4 mask-[url('/upload-arrow.svg')] mask-contain mask-center mask-no-repeat transition-opacity duration-150 ease-out";

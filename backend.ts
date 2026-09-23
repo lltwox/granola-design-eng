@@ -45,8 +45,8 @@ export async function simulateAudioUpload(
     failure,
     onProgress,
     signal,
-    transcriptionDuration = 1_800,
-    uploadDuration = 2_400,
+    transcriptionDuration = 21_800,
+    uploadDuration = 22_400,
   } = options;
 
   throwIfAborted(signal);

@@ -2,7 +2,8 @@ type AudioUploadInstructionsProps = {
   description?: string;
   error?: string;
   fileSize?: string;
-  mode: "idle" | "uploading" | "transcribing" | "success" | "error";
+  mode:
+    "idle" | "dragging" | "uploading" | "transcribing" | "success" | "error";
 };
 
 export default function AudioUploadInstructions({
