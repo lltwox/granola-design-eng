@@ -1,19 +1,94 @@
 type AudioUploadIndicatorProps = {
   isDragging: boolean;
+  mode: "idle" | "uploading" | "transcribing" | "success" | "error";
+  progress?: number;
 };
 
 export default function AudioUploadIndicator({
   isDragging,
+  mode,
+  progress = 0,
 }: AudioUploadIndicatorProps) {
+  if (mode === "uploading" || mode === "transcribing") {
+    return <AudioUploadProgress progress={progress} />;
+  }
+
+  if (mode === "success") {
+    return <AudioUploadSuccess />;
+  }
+
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none relative flex h-44 w-40 shrink-0 items-center justify-center"
       data-slot="audio-upload-indicator"
     >
-      <AudioUploadDecoration isDragging={isDragging} />
-      <AudioUploadWaveform isDragging={isDragging} />
-      <AudioUploadStatusBadge isDragging={isDragging} />
+      <AudioUploadDecoration isDragging={isDragging} mode={mode} />
+      <AudioUploadWaveform isDragging={isDragging} mode={mode} />
+      <AudioUploadStatusBadge isDragging={isDragging} mode={mode} />
+    </div>
+  );
+}
+
+function AudioUploadProgress({ progress }: { progress: number }) {
+  const radius = 35;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - progress / 100);
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none relative flex size-44 shrink-0 items-center justify-center"
+      data-slot="audio-upload-indicator"
+    >
+      <div className="absolute size-44 rounded-full border-[0.5px] border-teal-600/10" />
+      <div className="absolute size-36.5 rounded-full border-[0.5px] border-teal-600/20" />
+      <div className="absolute size-28.5 rounded-full border-[0.5px] border-teal-600/40" />
+      <div className="relative grid size-20.5 place-items-center rounded-full bg-white shadow-[0_8px_24px_rgba(13,148,136,0.08)]">
+        <svg className="absolute inset-0 -rotate-90" viewBox="0 0 82 82">
+          <circle
+            className="stroke-teal-100"
+            cx="41"
+            cy="41"
+            fill="none"
+            r={radius}
+            strokeWidth="3"
+          />
+          <circle
+            className="stroke-teal-600 transition-[stroke-dashoffset] duration-100 ease-linear motion-reduce:transition-none"
+            cx="41"
+            cy="41"
+            fill="none"
+            r={radius}
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="round"
+            strokeWidth="3"
+          />
+        </svg>
+        <span className="text-2xl/7 text-teal-600 tabular-nums">
+          {progress}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function AudioUploadSuccess() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none relative flex h-44 w-40 shrink-0 items-center justify-center"
+      data-slot="audio-upload-indicator"
+    >
+      <div className="absolute h-44 w-40 rounded-[56px] border-[0.5px] border-teal-600/10" />
+      <div className="absolute h-36 w-32 rounded-[40px] border-[0.5px] border-teal-600/20" />
+      <div className="absolute h-28 w-24 rounded-3xl border-[0.5px] border-teal-600/40" />
+      <div className="grid h-20 w-16 place-items-center rounded-lg border-[0.5px] border-teal-700/20 bg-white shadow-md">
+        <span className="grid size-8.5 place-items-center rounded-full bg-teal-50">
+          <span className="size-6 bg-teal-600 mask-[url('/upload-check.svg')] mask-contain mask-center mask-no-repeat" />
+        </span>
+      </div>
     </div>
   );
 }
