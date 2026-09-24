@@ -36,6 +36,10 @@ export default function AudioUploadCard() {
   }
 
   function handleDragEnter(event: DragEvent<HTMLElement>) {
+    if (!event.dataTransfer.types.includes("Files")) {
+      return;
+    }
+
     event.preventDefault();
     if (isDropDisabled(uploadState)) {
       dragDepthRef.current = 0;
@@ -53,6 +57,10 @@ export default function AudioUploadCard() {
   }
 
   function handleDragLeave(event: DragEvent<HTMLElement>) {
+    if (!event.dataTransfer.types.includes("Files")) {
+      return;
+    }
+
     event.preventDefault();
     if (isDropDisabled(uploadState)) {
       return;
@@ -70,6 +78,10 @@ export default function AudioUploadCard() {
   }
 
   function handleDragOver(event: DragEvent<HTMLElement>) {
+    if (!event.dataTransfer.types.includes("Files")) {
+      return;
+    }
+
     event.preventDefault();
     event.dataTransfer.dropEffect = isDropDisabled(uploadState)
       ? "none"
@@ -77,6 +89,10 @@ export default function AudioUploadCard() {
   }
 
   function handleDrop(event: DragEvent<HTMLElement>) {
+    if (!event.dataTransfer.types.includes("Files")) {
+      return;
+    }
+
     event.preventDefault();
     dragDepthRef.current = 0;
 
@@ -96,6 +112,10 @@ export default function AudioUploadCard() {
   }
 
   function handleFile(file: File) {
+    if (isDropDisabled(uploadState)) {
+      return;
+    }
+
     clearInvalidFileErrorTimer();
     const requestId = activeRequestIdRef.current + 1;
     const uploadFile: UploadFile = { name: file.name, size: file.size };

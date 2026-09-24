@@ -52,7 +52,8 @@ export default function AudioUploadButton({
         <input
           ref={inputRef}
           accept=".wav,audio/wav,audio/x-wav"
-          className="sr-only"
+          disabled={isProcessing || isSuccess}
+          hidden
           onChange={(event) => handleFileSelection(event.target.files?.[0])}
           type="file"
         />
