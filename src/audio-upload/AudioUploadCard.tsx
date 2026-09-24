@@ -1,55 +1,29 @@
+import type { AudioUploadState, UploadFile } from "./types.js";
+
 import { type DragEvent, useEffect, useRef, useState } from "react";
 
 import {
   simulateAudioTranscription,
   simulateAudioUpload,
-  type UploadErrorCode,
 } from "../../backend.js";
 
 import AudioUploadButton from "./AudioUploadButton.js";
 import AudioUploadIndicator from "./AudioUploadIndicator.js";
 import AudioUploadInstructions from "./AudioUploadInstructions.js";
 
-type UploadFile = Pick<File, "name" | "size">;
-
 const INVALID_FILE_ERROR_DURATION = 3_000;
 
-export type AudioUploadDebugOptions = {
-  transcriptionDuration: number;
-  transcriptionError: boolean;
-  uploadDuration: number;
-  uploadError: boolean;
-};
-
-type UploadState =
-  | { status: "idle" }
-  | { status: "dragging" }
-  | { file: UploadFile; progress: number; status: "uploading" }
-  | { file: UploadFile; status: "transcribing" }
-  | { file: UploadFile; status: "success" }
-  | {
-      code: UploadErrorCode;
-      description: string;
-      error: string;
-      file: UploadFile;
-      status: "error";
-    };
-
-export default function AudioUploadCard({
-  debugOptions,
-}: {
-  debugOptions: AudioUploadDebugOptions;
-}) {
-  const [uploadState, setUploadState] = useState<UploadState>({
+export default function AudioUploadCard() {
+  const [uploadState, setUploadState] = useState<AudioUploadState>({
     status: "idle",
   });
+  const activeRequestIdRef = useRef(0);
   const dragDepthRef = useRef(0);
   const invalidFileErrorTimerRef = useRef<number>(null);
-  const uploadControllerRef = useRef<AbortController>(null);
 
   useEffect(() => {
     return () => {
-      uploadControllerRef.current?.abort();
+      activeRequestIdRef.current += 1;
       clearInvalidFileErrorTimer();
     };
   }, []);
@@ -63,7 +37,6 @@ export default function AudioUploadCard({
 
   function handleDragEnter(event: DragEvent<HTMLElement>) {
     event.preventDefault();
-
     if (isDropDisabled(uploadState)) {
       dragDepthRef.current = 0;
       event.dataTransfer.dropEffect = "none";
@@ -71,42 +44,29 @@ export default function AudioUploadCard({
     }
 
     dragDepthRef.current += 1;
-
     if (dragDepthRef.current !== 1) {
       return;
     }
 
-    if (uploadState.status === "idle") {
-      setUploadState({ status: "dragging" });
-    } else if (
-      uploadState.status === "error" &&
-      (uploadState.code === "INVALID_FILE_TYPE" ||
-        uploadState.code === "UPLOAD_FAILED")
-    ) {
-      if (uploadState.code === "INVALID_FILE_TYPE") {
-        clearInvalidFileErrorTimer();
-      }
-
-      uploadControllerRef.current = null;
-      setUploadState({ status: "dragging" });
-    }
+    clearInvalidFileErrorTimer();
+    setUploadState({ status: "dragging" });
   }
 
   function handleDragLeave(event: DragEvent<HTMLElement>) {
     event.preventDefault();
-
     if (isDropDisabled(uploadState)) {
       return;
     }
 
     dragDepthRef.current -= 1;
-
-    if (dragDepthRef.current <= 0) {
-      dragDepthRef.current = 0;
-      setUploadState((state) =>
-        state.status === "dragging" ? { status: "idle" } : state,
-      );
+    if (dragDepthRef.current > 0) {
+      return;
     }
+
+    dragDepthRef.current = 0;
+    setUploadState((state) =>
+      state.status === "dragging" ? { status: "idle" } : state,
+    );
   }
 
   function handleDragOver(event: DragEvent<HTMLElement>) {
@@ -137,23 +97,18 @@ export default function AudioUploadCard({
 
   function handleFile(file: File) {
     clearInvalidFileErrorTimer();
-    uploadControllerRef.current?.abort();
-    const controller = new AbortController();
+    const requestId = activeRequestIdRef.current + 1;
     const uploadFile: UploadFile = { name: file.name, size: file.size };
-    uploadControllerRef.current = controller;
+    activeRequestIdRef.current = requestId;
 
     setUploadState({ file: uploadFile, progress: 0, status: "uploading" });
 
     simulateAudioUpload(file, {
-      failure: debugOptions.uploadError
-        ? "upload"
-        : debugOptions.transcriptionError
-          ? "transcription"
-          : undefined,
-      signal: controller.signal,
-      transcriptionDuration: debugOptions.transcriptionDuration,
-      uploadDuration: debugOptions.uploadDuration,
       onUpdate: (update) => {
+        if (requestId !== activeRequestIdRef.current) {
+          return;
+        }
+
         if (update.stage === "uploading") {
           setUploadState({
             file: uploadFile,
@@ -170,11 +125,15 @@ export default function AudioUploadCard({
       },
     })
       .then(() => {
+        if (requestId !== activeRequestIdRef.current) {
+          return;
+        }
+
         dragDepthRef.current = 0;
         setUploadState({ file: uploadFile, status: "success" });
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (requestId !== activeRequestIdRef.current) {
           return;
         }
 
@@ -192,8 +151,9 @@ export default function AudioUploadCard({
         if (clientError.code === "INVALID_FILE_TYPE") {
           invalidFileErrorTimerRef.current = window.setTimeout(() => {
             invalidFileErrorTimerRef.current = null;
-            uploadControllerRef.current = null;
-            setUploadState({ status: "idle" });
+            if (requestId === activeRequestIdRef.current) {
+              setUploadState({ status: "idle" });
+            }
           }, INVALID_FILE_ERROR_DURATION);
         }
       });
@@ -208,22 +168,21 @@ export default function AudioUploadCard({
     }
 
     const { file } = uploadState;
-    const controller = new AbortController();
-    uploadControllerRef.current?.abort();
-    uploadControllerRef.current = controller;
+    const requestId = activeRequestIdRef.current + 1;
+    activeRequestIdRef.current = requestId;
     setUploadState({ file, status: "transcribing" });
 
-    simulateAudioTranscription({
-      failure: debugOptions.transcriptionError,
-      signal: controller.signal,
-      transcriptionDuration: debugOptions.transcriptionDuration,
-    })
+    simulateAudioTranscription()
       .then(() => {
+        if (requestId !== activeRequestIdRef.current) {
+          return;
+        }
+
         dragDepthRef.current = 0;
         setUploadState({ file, status: "success" });
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") {
+        if (requestId !== activeRequestIdRef.current) {
           return;
         }
 
@@ -239,16 +198,12 @@ export default function AudioUploadCard({
 
   function resetUpload() {
     clearInvalidFileErrorTimer();
-    uploadControllerRef.current?.abort();
-    uploadControllerRef.current = null;
+    activeRequestIdRef.current += 1;
     setUploadState({ status: "idle" });
   }
 
   const isBusy =
     uploadState.status === "uploading" || uploadState.status === "transcribing";
-  const fileSize = getFileSizeLabel(uploadState);
-  const clientError = uploadState.status === "error" ? uploadState : undefined;
-
   return (
     <section
       aria-labelledby="audio-upload-title"
@@ -265,36 +220,12 @@ export default function AudioUploadCard({
         className="relative bottom-[6.5%] flex flex-col items-center"
         data-slot="audio-upload-content"
       >
-        <AudioUploadIndicator
-          mode={uploadState.status}
-          progress={
-            "progress" in uploadState ? uploadState.progress : undefined
-          }
-        />
-        <div aria-live="polite">
-          <AudioUploadInstructions
-            description={clientError?.description}
-            error={clientError?.error}
-            fileSize={fileSize}
-            mode={uploadState.status}
-          />
-        </div>
+        <AudioUploadIndicator state={uploadState} />
+        <AudioUploadInstructions state={uploadState} />
         <AudioUploadButton
-          mode={
-            isBusy
-              ? "busy"
-              : uploadState.status === "success"
-                ? "success"
-                : isTranscriptionError(uploadState)
-                  ? "transcription-error"
-                  : uploadState.status === "error"
-                    ? "error"
-                    : "idle"
-          }
-          onCancel={resetUpload}
-          onContinue={resetUpload}
+          state={uploadState}
           onFileSelected={handleFile}
-          onGoBack={resetUpload}
+          onReset={resetUpload}
           onRetry={retryTranscription}
         />
       </div>
@@ -302,18 +233,23 @@ export default function AudioUploadCard({
   );
 }
 
-function isTranscriptionError(state: UploadState): boolean {
-  return state.status === "error" && state.code === "TRANSCRIPTION_FAILED";
+function isDropDisabled(state: AudioUploadState): boolean {
+  return (
+    state.status === "uploading" ||
+    state.status === "transcribing" ||
+    state.status === "success" ||
+    isTranscriptionError(state)
+  );
 }
 
-function isDropDisabled(state: UploadState): boolean {
-  return state.status === "success" || isTranscriptionError(state);
+function isTranscriptionError(state: AudioUploadState): boolean {
+  return state.status === "error" && state.code === "TRANSCRIPTION_FAILED";
 }
 
 function getClientError(
   error: unknown,
 ): Pick<
-  Extract<UploadState, { status: "error" }>,
+  Extract<AudioUploadState, { status: "error" }>,
   "code" | "description" | "error"
 > {
   const code =
@@ -335,7 +271,7 @@ function getClientError(
   }
 }
 
-function getCardClassName(status: UploadState["status"]) {
+function getCardClassName(status: AudioUploadState["status"]) {
   if (status === "success") {
     return "border-solid border-teal-600/50 bg-teal-50";
   }
@@ -351,15 +287,4 @@ function getCardClassName(status: UploadState["status"]) {
   return status === "dragging"
     ? "border-dashed border-teal-600/50 bg-teal-50"
     : "border-dashed border-zinc-300 bg-zinc-50";
-}
-
-function getFileSizeLabel(state: UploadState) {
-  if (state.status !== "uploading") {
-    return undefined;
-  }
-
-  const total = state.file.size / 1_000_000;
-  const uploaded = total * (state.progress / 100);
-
-  return `${uploaded.toFixed(1)}/${total.toFixed(1)}Mb`;
 }

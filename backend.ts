@@ -1,5 +1,3 @@
-export type SimulatedFailure = "upload" | "transcription";
-
 export type UploadErrorCode =
   "INVALID_FILE_TYPE" | "UPLOAD_FAILED" | "TRANSCRIPTION_FAILED";
 
@@ -13,17 +11,14 @@ export type UploadResult = {
 };
 
 export type SimulateUploadOptions = {
-  failure?: SimulatedFailure;
   onUpdate?: (update: UploadUpdate) => void;
-  signal?: AbortSignal;
-  transcriptionDuration?: number;
-  uploadDuration?: number;
 };
 
-export type SimulateTranscriptionOptions = {
-  failure?: boolean;
-  signal?: AbortSignal;
-  transcriptionDuration?: number;
+export type BackendDebugOptions = {
+  transcriptionDuration: number;
+  transcriptionError: boolean;
+  uploadDuration: number;
+  uploadError: boolean;
 };
 
 export class UploadSimulationError extends Error {
@@ -38,27 +33,37 @@ export class UploadSimulationError extends Error {
 
 const WAV_HEADER_LENGTH = 12;
 const SIMULATION_STEPS = 100;
-const TRANSCRIPTION_DURATION = 221_800;
-const UPLOAD_DURATION = 2_400;
+let backendDebugOptions: BackendDebugOptions = {
+  transcriptionDuration: 10_000,
+  transcriptionError: false,
+  uploadDuration: 3_000,
+  uploadError: false,
+};
+
+export function getBackendDebugOptions(): BackendDebugOptions {
+  return { ...backendDebugOptions };
+}
+
+export function setBackendDebugOptions(options: BackendDebugOptions) {
+  backendDebugOptions = { ...options };
+}
 
 export async function simulateAudioUpload(
   file: File,
   options: SimulateUploadOptions = {},
 ): Promise<UploadResult> {
+  const { onUpdate } = options;
   const {
-    failure,
-    onUpdate,
-    signal,
-    transcriptionDuration = TRANSCRIPTION_DURATION,
-    uploadDuration = UPLOAD_DURATION,
-  } = options;
+    transcriptionDuration,
+    transcriptionError,
+    uploadDuration,
+    uploadError,
+  } = backendDebugOptions;
 
-  throwIfAborted(signal);
   await validateWavFile(file);
-  throwIfAborted(signal);
 
-  await simulateUpload(uploadDuration, onUpdate, signal, () => {
-    if (failure === "upload") {
+  await simulateUpload(uploadDuration, onUpdate, () => {
+    if (uploadError) {
       throw new UploadSimulationError(
         "UPLOAD_FAILED",
         "The upload failed. Please try again.",
@@ -67,9 +72,8 @@ export async function simulateAudioUpload(
   });
 
   onUpdate?.({ stage: "transcribing" });
-  await simulateAudioTranscription({
-    failure: failure === "transcription",
-    signal,
+  await simulateTranscriptionPhase({
+    failure: transcriptionError,
     transcriptionDuration,
   });
 
@@ -80,17 +84,25 @@ export async function simulateAudioUpload(
   };
 }
 
-export async function simulateAudioTranscription(
-  options: SimulateTranscriptionOptions = {},
-) {
-  const {
-    failure = false,
-    signal,
-    transcriptionDuration = TRANSCRIPTION_DURATION,
-  } = options;
+export async function simulateAudioTranscription() {
+  const { transcriptionDuration, transcriptionError } = backendDebugOptions;
 
-  throwIfAborted(signal);
-  await simulateTranscription(transcriptionDuration, signal, () => {
+  await simulateTranscriptionPhase({
+    failure: transcriptionError,
+    transcriptionDuration,
+  });
+}
+
+type TranscriptionPhaseOptions = {
+  failure: boolean;
+  transcriptionDuration: number;
+};
+
+async function simulateTranscriptionPhase({
+  failure,
+  transcriptionDuration,
+}: TranscriptionPhaseOptions) {
+  await simulateTranscription(transcriptionDuration, () => {
     if (failure) {
       throw new UploadSimulationError(
         "TRANSCRIPTION_FAILED",
@@ -119,18 +131,17 @@ async function validateWavFile(file: File) {
 async function simulateUpload(
   duration: number,
   onUpdate: SimulateUploadOptions["onUpdate"],
-  signal: AbortSignal | undefined,
   fail: () => void,
 ) {
   onUpdate?.({ progress: 0, stage: "uploading" });
 
   if (!Number.isFinite(duration)) {
-    await delay(duration, signal);
+    await delay(duration);
     return;
   }
 
   for (let step = 1; step <= SIMULATION_STEPS; step += 1) {
-    await delay(duration / SIMULATION_STEPS, signal);
+    await delay(duration / SIMULATION_STEPS);
     const progress = Math.round((step / SIMULATION_STEPS) * 100);
     onUpdate?.({ progress, stage: "uploading" });
 
@@ -140,53 +151,20 @@ async function simulateUpload(
   }
 }
 
-async function simulateTranscription(
-  duration: number,
-  signal: AbortSignal | undefined,
-  fail: () => void,
-) {
-  await delay(duration / 2, signal);
+async function simulateTranscription(duration: number, fail: () => void) {
+  await delay(duration / 2);
   fail();
-  await delay(duration / 2, signal);
+  await delay(duration / 2);
 }
 
-function delay(milliseconds: number, signal?: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(createAbortError());
-      return;
-    }
-
-    let timeout: number | undefined;
-    const handleAbort = () => {
-      if (timeout !== undefined) {
-        window.clearTimeout(timeout);
-      }
-      reject(createAbortError());
-    };
-
+function delay(milliseconds: number) {
+  return new Promise<void>((resolve) => {
     if (!Number.isFinite(milliseconds)) {
-      signal?.addEventListener("abort", handleAbort, { once: true });
       return;
     }
 
-    timeout = window.setTimeout(() => {
-      signal?.removeEventListener("abort", handleAbort);
-      resolve();
-    }, milliseconds);
-
-    signal?.addEventListener("abort", handleAbort, { once: true });
+    window.setTimeout(resolve, milliseconds);
   });
-}
-
-function throwIfAborted(signal?: AbortSignal) {
-  if (signal?.aborted) {
-    throw createAbortError();
-  }
-}
-
-function createAbortError() {
-  return new DOMException("The upload was cancelled.", "AbortError");
 }
 
 function readAscii(bytes: Uint8Array, start: number, end: number) {
