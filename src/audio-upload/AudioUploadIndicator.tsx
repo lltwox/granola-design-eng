@@ -13,29 +13,29 @@ type AudioUploadContentProps = AudioUploadModeProps & {
 };
 
 type DecorationShape = {
+  width: number;
   height: number;
   radius: number;
-  width: number;
-  x: number;
-  y: number;
 };
 
+const DECORATION_SIZE = 178;
+
 const IDLE_DECORATION: DecorationShape[] = [
-  { height: 176, radius: 56, width: 160, x: 8, y: 0 },
-  { height: 144, radius: 40, width: 128, x: 24, y: 16 },
-  { height: 112, radius: 24, width: 96, x: 40, y: 32 },
+  { width: 160, height: 176, radius: 56 },
+  { width: 128, height: 144, radius: 40 },
+  { width: 96, height: 112, radius: 24 },
 ];
 
 const DRAGGING_DECORATION: DecorationShape[] = [
-  { height: 140, radius: 38, width: 124, x: 26, y: 18 },
-  { height: 120, radius: 28, width: 104, x: 36, y: 28 },
-  { height: 101, radius: 18, width: 84, x: 46, y: 37.5 },
+  { width: 124, height: 140, radius: 38 },
+  { width: 104, height: 120, radius: 28 },
+  { width: 84, height: 101, radius: 18 },
 ];
 
 const PROCESSING_DECORATION: DecorationShape[] = [
-  { height: 176, radius: 88, width: 176, x: 0, y: 0 },
-  { height: 146, radius: 73, width: 146, x: 15, y: 15 },
-  { height: 114, radius: 57, width: 114, x: 31, y: 31 },
+  { width: 178, height: 178, radius: 89 },
+  { width: 146, height: 146, radius: 73 },
+  { width: 114, height: 114, radius: 57 },
 ];
 
 const PROGRESS_TICK_ANGLES = Array.from(
@@ -60,7 +60,7 @@ export default function AudioUploadIndicator({
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none relative flex size-44 shrink-0 items-center justify-center"
+      className="pointer-events-none relative flex size-44.5 shrink-0 items-center justify-center"
       data-slot="audio-upload-indicator"
     >
       <AudioUploadDecoration mode={mode} />
@@ -83,21 +83,21 @@ function AudioUploadDecoration({ mode }: AudioUploadModeProps) {
 
   return (
     <svg
-      className="absolute inset-0 size-full overflow-visible"
+      className="absolute inset-0 size-full -translate-y-px overflow-visible"
       data-slot="audio-upload-decoration"
-      viewBox="0 0 176 176"
+      viewBox={`0 0 ${DECORATION_SIZE} ${DECORATION_SIZE}`}
     >
       {geometry.map((shape, index) => (
         <rect
           key={index}
           className={`fill-none ${strokes[index]} transition-all duration-500 ease-out motion-reduce:transition-none`}
+          width={shape.width}
           height={shape.height}
           rx={shape.radius}
           strokeWidth="0.5"
           vectorEffect="non-scaling-stroke"
-          width={shape.width}
-          x={shape.x}
-          y={shape.y}
+          x={(DECORATION_SIZE - shape.width) / 2}
+          y={(DECORATION_SIZE - shape.height) / 2}
         />
       ))}
     </svg>
@@ -107,7 +107,7 @@ function AudioUploadDecoration({ mode }: AudioUploadModeProps) {
 function AudioUploadContent({ mode, progress }: AudioUploadContentProps) {
   return (
     <div
-      className={`relative grid place-items-center border-[0.5px] transition-all duration-500 ease-out motion-reduce:transition-none ${getIndicatorContentClassName(mode)}`}
+      className={`relative grid -translate-y-px place-items-center border-[0.5px] transition-all duration-500 ease-out motion-reduce:transition-none ${getIndicatorContentClassName(mode)}`}
       data-slot="audio-upload-content"
     >
       <AudioUploadWaveform mode={mode} />

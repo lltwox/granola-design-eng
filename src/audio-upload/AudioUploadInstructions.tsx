@@ -66,11 +66,11 @@ function Instruction({
 }) {
   return (
     <div
-      className="mt-2 flex h-14.5 flex-col items-center"
+      className="mt-1.5 flex h-14.5 flex-col items-center"
       data-slot="audio-upload-instructions"
     >
       <h1
-        className={`whitespace-pre-line font-medium text-zinc-600 ${description === undefined ? "text-base/5" : "text-base/6"}`}
+        className="whitespace-pre-line font-medium text-zinc-600 text-base/6"
         id="audio-upload-title"
       >
         {title}

@@ -237,7 +237,7 @@ export default function AudioUploadCard() {
       onDrop={handleDrop}
     >
       <div
-        className="relative bottom-[6.5%] flex flex-col items-center"
+        className="relative bottom-2.5 flex flex-col items-center"
         data-slot="audio-upload-content"
       >
         <AudioUploadIndicator state={uploadState} />
