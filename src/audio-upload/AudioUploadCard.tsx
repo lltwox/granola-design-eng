@@ -253,7 +253,7 @@ export default function AudioUploadCard({
     <section
       aria-labelledby="audio-upload-title"
       aria-busy={isBusy}
-      className={`grid h-[min(400px,calc(100svh-32px))] min-h-90 w-full min-w-65 max-w-75 place-items-center rounded-3xl border text-center transition-colors duration-200 ${getCardClassName(
+      className={`grid h-100 w-75 place-items-center rounded-3xl border text-center transition-colors duration-200 ${getCardClassName(
         uploadState.status,
       )}`}
       onDragEnter={handleDragEnter}

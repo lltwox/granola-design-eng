@@ -17,8 +17,10 @@ export default function App() {
     useState<AudioUploadDebugOptions>(initialDebugOptions);
 
   return (
-    <main className="grid min-h-svh content-start justify-items-center gap-6 overflow-auto bg-white p-4 py-8 lg:place-items-center lg:p-4">
-      <AudioUploadCard debugOptions={debugOptions} />
+    <main className="grid min-h-svh grid-rows-[minmax(0,2fr)_auto_minmax(0,3fr)] justify-items-center overflow-auto bg-white p-4">
+      <div className="row-start-2 h-100 w-75">
+        <AudioUploadCard debugOptions={debugOptions} />
+      </div>
       <DebugOverlay value={debugOptions} onChange={setDebugOptions} />
     </main>
   );
@@ -47,7 +49,7 @@ function DebugOverlay({ onChange, value }: DebugOverlayProps) {
   return (
     <aside
       aria-label="Upload simulator debug controls"
-      className="static max-w-[calc(100vw-2rem)] overflow-x-auto rounded-2xl bg-zinc-100 p-3 text-zinc-950 shadow-[0_12px_36px_-14px_rgba(0,0,0,0.28)] lg:fixed lg:right-4 lg:bottom-4"
+      className="fixed right-4 bottom-4 max-w-[calc(100vw-2rem)] overflow-x-auto rounded-2xl bg-zinc-100 p-3 text-zinc-950 shadow-[0_12px_36px_-14px_rgba(0,0,0,0.28)]"
     >
       <div className="flex min-w-max items-center gap-3">
         <DurationSlider
