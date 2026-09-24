@@ -35,7 +35,7 @@ export class UploadSimulationError extends Error {
 }
 
 const WAV_HEADER_LENGTH = 12;
-const SIMULATION_STEPS = 20;
+const SIMULATION_STEPS = 100;
 
 export async function simulateAudioUpload(
   file: File,
@@ -45,8 +45,8 @@ export async function simulateAudioUpload(
     failure,
     onProgress,
     signal,
-    transcriptionDuration = 21_800,
-    uploadDuration = 22_400,
+    transcriptionDuration = 221_800,
+    uploadDuration = 2_400,
   } = options;
 
   throwIfAborted(signal);

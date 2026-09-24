@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+@keyframes transcription-tick-orbit {
+  0%,
+  32% {
+    stroke: rgb(13 148 136 / 50%);
+  }
+
+  33%,
+  100% {
+    stroke: rgb(15 118 110 / 20%);
+  }
+}
+
+@keyframes transcription-wave-breathe {
+  0%,
+  12%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  6% {
+    transform: scaleY(1.2);
+  }
+}

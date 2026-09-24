@@ -22,11 +22,13 @@ export default function AudioUploadInstructions({
           className="text-base/6 font-medium text-zinc-600"
           id="audio-upload-title"
         >
-          {mode === "uploading"
-            ? "Uploading..."
-            : "Generating transcription..."}
+          {mode === "uploading" ? "Uploading…" : "Transcribing…"}
         </h1>
-        <p className="mt-0.5 h-8 text-xs/4 text-zinc-600">{fileSize}</p>
+        <p className="mt-0.5 h-8 w-55 text-xs/4 text-zinc-600">
+          {mode === "uploading"
+            ? fileSize
+            : "This may take a few minutes for longer recordings."}
+        </p>
       </div>
     );
   }

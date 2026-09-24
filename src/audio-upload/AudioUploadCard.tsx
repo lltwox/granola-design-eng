@@ -12,7 +12,7 @@ type UploadState =
   | { status: "idle" }
   | { status: "dragging" }
   | { file: UploadFile; progress: number; status: "uploading" }
-  | { file: UploadFile; progress: number; status: "transcribing" }
+  | { file: UploadFile; status: "transcribing" }
   | { file: UploadFile; status: "success" }
   | {
       description: string;
@@ -74,29 +74,42 @@ export default function AudioUploadCard() {
   function handleFile(file: File) {
     uploadControllerRef.current?.abort();
     const controller = new AbortController();
+    const uploadFile: UploadFile = { name: file.name, size: file.size };
     uploadControllerRef.current = controller;
 
-    setUploadState({ file, progress: 0, status: "uploading" });
+    setUploadState({ file: uploadFile, progress: 0, status: "uploading" });
 
     simulateAudioUpload(file, {
       signal: controller.signal,
       onProgress: ({ progress, stage }) => {
         if (stage === "uploading") {
-          setUploadState({ file, progress, status: "uploading" });
+          setUploadState({
+            file: uploadFile,
+            progress,
+            status: "uploading",
+          });
         } else {
-          setUploadState({ file, progress, status: "transcribing" });
+          setUploadState((state) =>
+            state.status === "transcribing"
+              ? state
+              : { file: uploadFile, status: "transcribing" },
+          );
         }
       },
     })
       .then(() => {
-        setUploadState({ file, status: "success" });
+        setUploadState({ file: uploadFile, status: "success" });
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
         }
 
-        setUploadState({ ...getClientError(error), file, status: "error" });
+        setUploadState({
+          ...getClientError(error),
+          file: uploadFile,
+          status: "error",
+        });
       });
   }
 
@@ -191,11 +204,7 @@ function getCardClassName(status: UploadState["status"]) {
     return "border-solid border-red-300 bg-red-50";
   }
 
-  if (
-    status === "uploading" ||
-    status === "transcribing" ||
-    status === "dragging"
-  ) {
+  if (status === "uploading" || status === "transcribing") {
     return "border-solid border-zinc-200 bg-zinc-50";
   }
 
@@ -205,18 +214,12 @@ function getCardClassName(status: UploadState["status"]) {
 }
 
 function getFileSizeLabel(state: UploadState) {
-  if (!("file" in state)) {
+  if (state.status !== "uploading") {
     return undefined;
   }
 
   const total = state.file.size / 1_000_000;
-  const progress =
-    state.status === "uploading"
-      ? state.progress
-      : state.status === "transcribing"
-        ? 100
-        : 0;
-  const uploaded = total * (progress / 100);
+  const uploaded = total * (state.progress / 100);
 
   return `${uploaded.toFixed(1)}/${total.toFixed(1)}Mb`;
 }
