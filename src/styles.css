@@ -23,3 +23,13 @@
     transform: scaleY(1.2);
   }
 }
+
+@keyframes cancel-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

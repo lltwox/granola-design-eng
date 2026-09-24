@@ -1,14 +1,10 @@
-export type UploadStage = "uploading" | "transcribing";
-
 export type SimulatedFailure = "upload" | "transcription";
 
 export type UploadErrorCode =
   "INVALID_FILE_TYPE" | "UPLOAD_FAILED" | "TRANSCRIPTION_FAILED";
 
-export type UploadProgress = {
-  stage: UploadStage;
-  progress: number;
-};
+export type UploadUpdate =
+  { progress: number; stage: "uploading" } | { stage: "transcribing" };
 
 export type UploadResult = {
   id: string;
@@ -18,10 +14,16 @@ export type UploadResult = {
 
 export type SimulateUploadOptions = {
   failure?: SimulatedFailure;
-  onProgress?: (progress: UploadProgress) => void;
+  onUpdate?: (update: UploadUpdate) => void;
   signal?: AbortSignal;
   transcriptionDuration?: number;
   uploadDuration?: number;
+};
+
+export type SimulateTranscriptionOptions = {
+  failure?: boolean;
+  signal?: AbortSignal;
+  transcriptionDuration?: number;
 };
 
 export class UploadSimulationError extends Error {
@@ -36,6 +38,8 @@ export class UploadSimulationError extends Error {
 
 const WAV_HEADER_LENGTH = 12;
 const SIMULATION_STEPS = 100;
+const TRANSCRIPTION_DURATION = 221_800;
+const UPLOAD_DURATION = 2_400;
 
 export async function simulateAudioUpload(
   file: File,
@@ -43,17 +47,17 @@ export async function simulateAudioUpload(
 ): Promise<UploadResult> {
   const {
     failure,
-    onProgress,
+    onUpdate,
     signal,
-    transcriptionDuration = 221_800,
-    uploadDuration = 2_400,
+    transcriptionDuration = TRANSCRIPTION_DURATION,
+    uploadDuration = UPLOAD_DURATION,
   } = options;
 
   throwIfAborted(signal);
   await validateWavFile(file);
   throwIfAborted(signal);
 
-  await simulateStage("uploading", uploadDuration, onProgress, signal, () => {
+  await simulateUpload(uploadDuration, onUpdate, signal, () => {
     if (failure === "upload") {
       throw new UploadSimulationError(
         "UPLOAD_FAILED",
@@ -62,26 +66,38 @@ export async function simulateAudioUpload(
     }
   });
 
-  await simulateStage(
-    "transcribing",
-    transcriptionDuration,
-    onProgress,
+  onUpdate?.({ stage: "transcribing" });
+  await simulateAudioTranscription({
+    failure: failure === "transcription",
     signal,
-    () => {
-      if (failure === "transcription") {
-        throw new UploadSimulationError(
-          "TRANSCRIPTION_FAILED",
-          "The transcription failed. Please try again.",
-        );
-      }
-    },
-  );
+    transcriptionDuration,
+  });
 
   return {
     id: `upload-${Date.now()}`,
     fileName: file.name,
     status: "complete",
   };
+}
+
+export async function simulateAudioTranscription(
+  options: SimulateTranscriptionOptions = {},
+) {
+  const {
+    failure = false,
+    signal,
+    transcriptionDuration = TRANSCRIPTION_DURATION,
+  } = options;
+
+  throwIfAborted(signal);
+  await simulateTranscription(transcriptionDuration, signal, () => {
+    if (failure) {
+      throw new UploadSimulationError(
+        "TRANSCRIPTION_FAILED",
+        "There was a temporary problem with the transcription service",
+      );
+    }
+  });
 }
 
 async function validateWavFile(file: File) {
@@ -100,24 +116,38 @@ async function validateWavFile(file: File) {
   }
 }
 
-async function simulateStage(
-  stage: UploadStage,
+async function simulateUpload(
   duration: number,
-  onProgress: SimulateUploadOptions["onProgress"],
+  onUpdate: SimulateUploadOptions["onUpdate"],
   signal: AbortSignal | undefined,
   fail: () => void,
 ) {
-  onProgress?.({ stage, progress: 0 });
+  onUpdate?.({ progress: 0, stage: "uploading" });
+
+  if (!Number.isFinite(duration)) {
+    await delay(duration, signal);
+    return;
+  }
 
   for (let step = 1; step <= SIMULATION_STEPS; step += 1) {
     await delay(duration / SIMULATION_STEPS, signal);
     const progress = Math.round((step / SIMULATION_STEPS) * 100);
-    onProgress?.({ stage, progress });
+    onUpdate?.({ progress, stage: "uploading" });
 
     if (step === Math.ceil(SIMULATION_STEPS / 2)) {
       fail();
     }
   }
+}
+
+async function simulateTranscription(
+  duration: number,
+  signal: AbortSignal | undefined,
+  fail: () => void,
+) {
+  await delay(duration / 2, signal);
+  fail();
+  await delay(duration / 2, signal);
 }
 
 function delay(milliseconds: number, signal?: AbortSignal) {
@@ -127,11 +157,20 @@ function delay(milliseconds: number, signal?: AbortSignal) {
       return;
     }
 
+    let timeout: number | undefined;
     const handleAbort = () => {
-      window.clearTimeout(timeout);
+      if (timeout !== undefined) {
+        window.clearTimeout(timeout);
+      }
       reject(createAbortError());
     };
-    const timeout = window.setTimeout(() => {
+
+    if (!Number.isFinite(milliseconds)) {
+      signal?.addEventListener("abort", handleAbort, { once: true });
+      return;
+    }
+
+    timeout = window.setTimeout(() => {
       signal?.removeEventListener("abort", handleAbort);
       resolve();
     }, milliseconds);

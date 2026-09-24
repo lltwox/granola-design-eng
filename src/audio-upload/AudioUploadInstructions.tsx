@@ -1,3 +1,32 @@
+import { useEffect, useState } from "react";
+
+const TRANSCRIPTION_MESSAGES = [
+  "Turning sound waves into words...",
+  "Listening very, very carefully...",
+  "Convincing the audio to reveal its secrets...",
+  "Separating the words from the ums...",
+  "Making sense of all that talking...",
+  "Chasing down the last few syllables...",
+  "Teaching punctuation where to go...",
+  "Decoding questionable microphone choices...",
+  "Giving every word a proper home...",
+  "Almost done pretending this is magic...",
+];
+
+function shuffleTranscriptionMessages() {
+  const messages = [...TRANSCRIPTION_MESSAGES];
+
+  for (let index = messages.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [messages[index], messages[randomIndex]] = [
+      messages[randomIndex],
+      messages[index],
+    ];
+  }
+
+  return messages;
+}
+
 type AudioUploadInstructionsProps = {
   description?: string;
   error?: string;
@@ -12,6 +41,29 @@ export default function AudioUploadInstructions({
   fileSize,
   mode,
 }: AudioUploadInstructionsProps) {
+  const [transcriptionMessages, setTranscriptionMessages] = useState(
+    shuffleTranscriptionMessages,
+  );
+  const [transcriptionMessageIndex, setTranscriptionMessageIndex] = useState(0);
+
+  useEffect(() => {
+    if (mode !== "transcribing") {
+      setTranscriptionMessageIndex(0);
+      return;
+    }
+
+    setTranscriptionMessages(shuffleTranscriptionMessages());
+    setTranscriptionMessageIndex(0);
+
+    const interval = window.setInterval(() => {
+      setTranscriptionMessageIndex(
+        (currentIndex) => (currentIndex + 1) % transcriptionMessages.length,
+      );
+    }, 4000);
+
+    return () => window.clearInterval(interval);
+  }, [mode, transcriptionMessages.length]);
+
   if (mode === "uploading" || mode === "transcribing") {
     return (
       <div
@@ -24,11 +76,25 @@ export default function AudioUploadInstructions({
         >
           {mode === "uploading" ? "Uploading…" : "Transcribing…"}
         </h1>
-        <p className="mt-0.5 h-8 w-55 text-xs/4 text-zinc-600">
-          {mode === "uploading"
-            ? fileSize
-            : "This may take a few minutes for longer recordings."}
-        </p>
+        {mode === "uploading" ? (
+          <p className="mt-0.5 h-8 w-55 text-xs/4 text-zinc-600">{fileSize}</p>
+        ) : (
+          <div className="relative mt-0.5 h-8 w-55 text-xs/4 text-zinc-600">
+            {transcriptionMessages.map((message, index) => (
+              <p
+                aria-hidden={index !== transcriptionMessageIndex}
+                className={`absolute inset-0 transition-opacity duration-500 motion-reduce:transition-none ${
+                  index === transcriptionMessageIndex
+                    ? "opacity-100"
+                    : "opacity-0"
+                }`}
+                key={message}
+              >
+                {message}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
